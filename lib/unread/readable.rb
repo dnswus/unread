@@ -1,3 +1,5 @@
+require 'activerecord-import'
+
 module Unread
   module Readable
     module ClassMethods
@@ -9,10 +11,23 @@ module Unread
 
         if target == :all
           reset_read_marks_for_user(reader)
+        elsif target.is_a?(ActiveRecord::Relation)
+          mark_ar_as_read(target, reader)
         elsif target.is_a?(Array)
           mark_array_as_read(target, reader)
         else
           raise ArgumentError
+        end
+      end
+
+      def mark_ar_as_read(ar, reader)
+        timestamp_field = readable_options[:on].to_sym
+        read_marks = ar.unread_by(reader).pluck(:id, timestamp_field).map do |mark|
+          mark += [ar.klass.base_class.name, reader.class.base_class.name, reader.id]
+        end
+        if read_marks.present?
+          columns = [:readable_id, :timestamp, :readable_type, :reader_type, :reader_id]
+          ReadMark.import(columns, read_marks)
         end
       end
 
