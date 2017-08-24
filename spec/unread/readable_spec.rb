@@ -280,6 +280,16 @@ describe Unread::Readable do
       expect(@email2.unread?(@reader)).to be_falsey
     end
 
+    it "should mark ActiveRecord::Relation as read" do
+      expect(@email1.unread?(@reader)).to be_truthy
+      expect(@email2.unread?(@reader)).to be_truthy
+
+      Email.mark_as_read! Email.all, :for => @reader
+
+      expect(@email1.unread?(@reader)).to be_falsey
+      expect(@email2.unread?(@reader)).to be_falsey
+    end
+
     it "should perform less queries if the objects are already read" do
       Email.mark_as_read! :all, :for => @reader
 

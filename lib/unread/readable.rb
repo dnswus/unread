@@ -22,7 +22,7 @@ module Unread
 
       def mark_ar_as_read(ar, reader)
         timestamp_field = readable_options[:on].to_sym
-        read_marks = ar.unread_by(reader).pluck(:id, timestamp_field).map do |mark|
+        read_marks = ar.unread_by(reader).pluck(ar.klass.primary_key, timestamp_field).map do |mark|
           mark += [ar.klass.base_class.name, reader.class.base_class.name, reader.id]
         end
         if read_marks.present?
