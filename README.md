@@ -4,7 +4,7 @@ Unread
 Ruby gem to manage read/unread status of ActiveRecord objects - and it's fast.
 
 [![Build Status](https://travis-ci.org/ledermann/unread.svg?branch=master)](https://travis-ci.org/ledermann/unread)
-[![Code Climate](https://codeclimate.com/github/ledermann/unread.svg)](https://codeclimate.com/github/ledermann/unread)
+[![Maintainability](https://api.codeclimate.com/v1/badges/930c8df0f99b20324444/maintainability)](https://codeclimate.com/github/ledermann/unread/maintainability)
 [![Coverage Status](https://coveralls.io/repos/ledermann/unread/badge.svg?branch=master)](https://coveralls.io/r/ledermann/unread?branch=master)
 
 ## Features
@@ -19,8 +19,8 @@ Ruby gem to manage read/unread status of ActiveRecord objects - and it's fast.
 
 ## Requirements
 
-* Ruby 2.0.0 or newer
-* Rails 3.0 or newer (including Rails 4.x and Rails 5.x)
+* Ruby 2.2 or newer
+* Rails 4.0 or newer (including Rails 5.1 and 5.2)
 * MySQL, PostgreSQL or SQLite
 * Needs a timestamp field in your models (like created_at or updated_at) with a database index on it
 
@@ -65,12 +65,22 @@ class User < ActiveRecord::Base
 
   # Optional: Allow a subset of users as readers only
   def self.reader_scope
-    where(:is_admin => true)
+    where(is_admin: true)
   end
 end
 
 class Message < ActiveRecord::Base
-  acts_as_readable :on => :created_at
+  acts_as_readable on: :created_at
+
+  # The `on:` option sets the relevant attribute for comparing timestamps.
+  #
+  # The default is :updated_at, so updating a record, which was read by a
+  # reader makes it unread again.
+  #
+  # Using :created_at, only new records will show up as unread. Updating a
+  # record which was read by a reader, will NOT mark it as unread.
+  #
+  # Any other existing timestamp field can be used as `on:` option.
 end
 
 message1 = Message.create!
@@ -80,7 +90,7 @@ message2 = Message.create!
 Message.unread_by(current_user)
 # => [ message1, message2 ]
 
-message1.mark_as_read! :for => current_user
+message1.mark_as_read! for: current_user
 Message.unread_by(current_user)
 # => [ message2 ]
 
@@ -88,7 +98,7 @@ Message.unread_by(current_user)
 Message.read_by(current_user)
 # => [ ]
 
-message1.mark_as_read! :for => current_user
+message1.mark_as_read! for: current_user
 Message.read_by(current_user)
 # => [ message1 ]
 
@@ -100,7 +110,7 @@ messages[0].unread?(current_user)
 messages[1].unread?(current_user)
 # => true
 
-Message.mark_as_read! :all, :for => current_user
+Message.mark_as_read! :all, for: current_user
 Message.unread_by(current_user)
 # => [ ]
 
@@ -114,7 +124,7 @@ user2 = User.create!
 User.have_not_read(message1)
 # => [ user1, user2 ]
 
-message1.mark_as_read! :for => user1
+message1.mark_as_read! for: user1
 User.have_not_read(message1)
 # => [ user2 ]
 
@@ -122,11 +132,11 @@ User.have_not_read(message1)
 User.have_read(message1)
 # => [ user1 ]
 
-message1.mark_as_read! :for => user2
+message1.mark_as_read! for: user2
 User.have_read(message1)
 # => [ user1, user2 ]
 
-Message.mark_as_read! :all, :for => user1
+Message.mark_as_read! :all, for: user1
 User.have_not_read(message1)
 # => [ ]
 User.have_not_read(message2)

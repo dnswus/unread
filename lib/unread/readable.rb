@@ -13,8 +13,8 @@ module Unread
           reset_read_marks_for_user(reader)
         elsif target.is_a?(ActiveRecord::Relation)
           mark_ar_as_read(target, reader)
-        elsif target.is_a?(Array)
-          mark_array_as_read(target, reader)
+        elsif target.respond_to?(:each)
+          mark_collection_as_read(target, reader)
         else
           raise ArgumentError
         end
@@ -22,20 +22,20 @@ module Unread
 
       def mark_ar_as_read(ar, reader)
         timestamp_field = readable_options[:on].to_sym
-        read_marks = ar.unread_by(reader).pluck(:id, timestamp_field).map do |mark|
-          mark += [ar.klass.base_class.name, reader.class.base_class.name, reader.id]
-        end
+        read_marks = ar.unread_by(reader).distinct.pluck(ar.klass.primary_key, timestamp_field).map do |mark|
+          mark + [ar.klass.base_class.name, reader.class.base_class.name, reader.id]
+        end.uniq
         if read_marks.present?
           columns = [:readable_id, :timestamp, :readable_type, :reader_type, :reader_id]
-          ReadMark.import(columns, read_marks)
+          ReadMark.import(columns, read_marks, validate: false)
         end
       end
 
-      def mark_array_as_read(array, reader)
+      def mark_collection_as_read(collection, reader)
         ReadMark.transaction do
           global_timestamp = reader.read_mark_global(self).try(:timestamp)
 
-          array.each do |obj|
+          collection.each do |obj|
             raise ArgumentError unless obj.is_a?(self)
             timestamp = obj.send(readable_options[:on])
 
@@ -85,7 +85,7 @@ module Unread
         assert_reader(reader)
 
         ReadMark.transaction do
-          reader.read_marks.where(:readable_type => self.readable_parent.name).delete_all
+          reader.read_marks.where(readable_type: self.readable_parent.name).delete_all
           rm = reader.read_marks.new
           rm.readable_type = self.readable_parent.name
           rm.timestamp = Time.current
@@ -138,11 +138,11 @@ module Unread
         end
       end
 
-      def read_mark(reader)
-        read_marks.where(:reader_id => reader.id, reader_type: reader.class.base_class.name).first
-      end
-
       private
+
+      def read_mark(reader)
+        read_marks.where(reader_id: reader.id, reader_type: reader.class.base_class.name).first
+      end
 
       def read_mark_id_belongs_to?(reader)
         self.read_mark_reader_id.to_i == reader.id &&
