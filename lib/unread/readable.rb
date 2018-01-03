@@ -27,7 +27,7 @@ module Unread
         end.uniq
         if read_marks.present?
           columns = [:readable_id, :timestamp, :readable_type, :reader_type, :reader_id]
-          ReadMark.import(columns, read_marks)
+          ReadMark.import(columns, read_marks, validate: false)
         end
       end
 
